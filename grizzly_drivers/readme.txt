@@ -22,6 +22,6 @@ It could use some refactoring. If somebody wants to write a good parser for it.
 xboxdrv is kinda buggy. It can be annoying to try and connect to the xbox
 controller. Usually it gets autoloaded when you plug it in and the driver cannot
 get a usb lock on it. Try running:
-    ajc ~ $ sudo rmmod xpad
+$ sudo rmmod xpad
 then trying RunGrizzly.py
 
