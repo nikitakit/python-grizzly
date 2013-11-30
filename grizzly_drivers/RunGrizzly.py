@@ -3,11 +3,10 @@ from xbox_read import event_stream
 
 g = GrizzlyUSB()
 grizzly = Grizzly(g)
-grizzly.setMode(ControlMode.POSITION_PID, DriveMode.DRIVE_BRAKE)
-grizzly.InitPID(2, .001, 5)
+grizzly.setMode(ControlMode.NO_PID, DriveMode.DRIVE_BRAKE)
 inputs = event_stream(4000)
 
 for event in inputs:
     if event.key == "Y2":
-        throttle = int(event.value) / 4
+        throttle = int(event.value) / 327
         grizzly.setSpeed(throttle)
