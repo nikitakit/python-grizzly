@@ -4,16 +4,25 @@ import struct
 
 class GrizzlyUSB(object):
     """Handles low level Grizzly communication over the USB protocol"""
-    def __init__(self, idVendor = 0x03eb, idProduct=0x204f):
-        dev = usb.core.find(idVendor = idVendor, idProduct = idProduct)
-        if (dev == None):
-            raise Exception("Could not find GrizzlyBear device (idVendor=%d, idProduct=%d)" % (idVendor, idProduct))
-        try:
-            dev.detach_kernel_driver(0)
-        except usb.USBError:
-            pass
-        
-        self._dev = dev
+    COMMAND_GET_ADDR            = "\x9b\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    def __init__(self, addr, idVendor = 0x03eb, idProduct=0x204f):
+        all_dev = usb.core.find(find_all = True, idVendor = idVendor, idProduct = idProduct)
+        for dev in all_dev:
+            try:
+                dev.detach_kernel_driver(0)
+            except usb.USBError:
+                pass
+            
+        if len(all_dev) <= 0:
+            raise usb.USBError("Could not find GrizzlyBear device (idVendor=%d, idProduct=%d)" % (idVendor, idProduct))
+        if len(all_dev) == 1:
+            self._dev = all_dev[0]
+        else:
+            for device in all_dev:
+                device.ctrl_transfer(0x21, 0x09, 0x0300, 0, GrizzlyUSB.COMMAND_GET_ADDR)
+                internal_addr = device.ctrl_transfer(0xa1, 0x01, 0x0301, 0, 2)[1]
+                if internal_addr == (addr << 1):
+                    self._dev = device
         
     def send_bytes(self, cmd):
         """Sends a 16 byte packet to the grizzly. Does not expect to read anything back.
@@ -49,18 +58,16 @@ class Grizzly(object):
     convenience methods that could be used commonly. Almost a direct port from the
     implementation in C#. However the control loop is expected to be much greater so
     there is no need for some of the optimizations in PiER."""
-    COMMAND_ENABLE_USB_MODE                  = "\x9A\x81\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-    COMMAND_DISABLE_TIMEOUT                 = "\x80\x82\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
     
-    def __init__(self, device):
+    def __init__(self, addr=0x0f):
         """Creates the object to represent the Grizzly. Provides access to
         control the grizzly. The @device argument refers to the low level
         GrizzlyUSB object that is connected as a USB device."""
-        self._dev = device
+        self._dev = GrizzlyUSB(addr)
         self._ticks = 0
-        self._dev.send_bytes(Grizzly.COMMAND_ENABLE_USB_MODE)
-        self._dev.send_bytes(Grizzly.COMMAND_DISABLE_TIMEOUT)
-    
+        self._set_as_int(Addr.EnableUSB, 1)
+        self._set_as_int(Addr.Timeout, 0, 2)
+        
     def set_register(self, addr, data):
         """Sets an arbitrary register at @addr and subsequent registers depending
         on how much data you decide to write. It will automatically fill extra
@@ -115,7 +122,8 @@ class Grizzly(object):
         """Convenience method. Oftentimes we need to set a range of registers
         to represent an int. This method will automatically set @numBytes registers
         starting at @addr. It will convert the int @val into an array of bytes."""
-        assert type(val) == type(int()), "Must provide an integer"
+        if type(val) == type(int):
+            raise ValueError("val must be an int. You provided: %s" % str(val))
         buf = []
         for i in range(numBytes):
             buf.append(cast_to_byte(val >> 8 * i))
@@ -151,11 +159,16 @@ class Grizzly(object):
     def limit_acceleration(self, accel):
         """Sets the acceleration limit on the Grizzly. The max value is
         143. Units are change in pwm per millisecond."""
-        assert accel < 0x8f, "Acceleration limit cannot exceed 143"
+        if accel >= 143:
+            raise ValueError("Acceleration limit cannot exceed 143. You provided: %s" % str(accel))
+        if accel <= 0:
+            raise ValueError("Acceleration limit must be positive. You provided: %s" % str(accel))
         self._set_as_int(Addr.AccelLimit, accel)
         
     def limit_current(self, curr):
         """Sets the current limit on the Grizzly. The units are in amps."""
+        if curr <= 0:
+            raise ValueError("Current limit must be a positive number. You provided: %s" % str(curr))
         current = int(curr * (1024.0 / 5.0) * (66.0 / 1000.0))
         self._set_as_int(Addr.CurrentLimit, current, 2)
         
@@ -176,7 +189,7 @@ class Grizzly(object):
         return map(lambda x: x / (2 ** 16), (p, i, d))
         
 def cast_to_byte(val):
-    return val & 0xff
+    return int(val) & 0xff
 
 class ControlMode(object):
     """Enum for the control modes. Use these as input to set_mode."""
@@ -204,3 +217,5 @@ class Addr(object):
     CurrentLimit                    = 0x82
     AccelLimit                      = 0x90
     Uptime                          = 0x94
+    EnableUSB                       = 0x9A
+    AddressList                     = 0x9B

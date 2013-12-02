@@ -14,6 +14,9 @@ Try using RunGrizzly.py:
 2. Power on the grizzly.
 3. Run sudo python RunGrizzly.py
 *Note that you must run python with sudo to gain access to usb privileges.
+*Alternatively, you can copy the .rules file into your /etc/udev/rules.d folder.
+*As long as you are in the sudo group, you will be given non-root access to the
+*grizzly as soon as you plug it in.
 4. Now the right analog stick in the y-direction controls the Grizzly throttle.
 
 xbox_read.py shamelessly copypasta'd from http://github.com/zephod/lego-pi

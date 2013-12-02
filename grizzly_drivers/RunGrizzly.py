@@ -3,8 +3,7 @@
 from libgrizzlyusb import *
 from xbox_read import event_stream
 
-g = GrizzlyUSB()
-grizzly = Grizzly(g)
+grizzly = Grizzly()
 grizzly.set_mode(ControlMode.NO_PID, DriveMode.DRIVE_BRAKE)
 grizzly.limit_acceleration(20)
 grizzly.limit_current(5)
