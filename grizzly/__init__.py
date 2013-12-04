@@ -122,7 +122,7 @@ class Grizzly(object):
         """
         
         fixed_set = setpoint * (2 ** 16)
-        buf = [cast_to_byte(fixed_set >> 8 * i, for i in range(5)]
+        buf = [cast_to_byte(fixed_set >> 8 * i) for i in range(5)]
         self.set_register(Addr.Speed, buf)
         
     def _read_as_int(self, addr, numBytes):
